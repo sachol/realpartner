@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  AGENT        // 공인중개사
+  ASSISTANT    // 중개보조원
+}
+
+enum PropertyStatus {
+  AVAILABLE    // 진행중 (파랑)
+  PENDING      // 보류 (주황)
+  COMPLETED    // 완료 (회색)
+}
+
+enum LeadGrade {
+  HOT
+  WARM
+  COLD
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String
+  role          UserRole  @default(AGENT)
+  monthlyGoal   Float     @default(0) // 목표 매출액
+  
+  properties    Property[]
+  leads         Lead[]
+  quests        Quest[]
+  goals         Goal[]
+  auditLogs     AuditLog[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Property {
+  id                String         @id @default(cuid())
+  address           String
+  detailAddress     String?
+  buildingName      String?
+  type              String         // 아파트, 빌라, 상가 등
+  status            PropertyStatus @default(AVAILABLE)
+  
+  // 국토부 API 연동 데이터 (Auto-fill)
+  exclusiveArea     Float?         // 전용면적
+  completionYear    Int?           // 준공연도
+  officialPrice     Float?         // 공시지가
+  floor             Int?           // 층수
+  
+  // 2024 개정 공인중개사법 필수 체크리스트 (Compliance)
+  isConfirmedFixedDate    Boolean @default(false) // 확정일자 부여 현황 확인
+  isTaxPaymentConfirmed   Boolean @default(false) // 국세/지방세 완납 확인
+  isOccupancyConfirmed    Boolean @default(false) // 전입세대 확인서 열람
+  
+  // 관리비 투명화 (Compliance)
+  fixedMaintenanceFee     Float @default(0)    // 정액 관리비
+  realMaintenanceFeeDesc  String?              // 실비 항목 설명 (전기, 수도 등)
+
+  agentId           String
+  agent             User           @relation(fields: [agentId], references: [id])
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+model Lead {
+  id              String      @id @default(cuid())
+  name            String
+  phone           String
+  budget          Float?      // 예산
+  targetDate      DateTime?   // 입주 희망일
+  preferredRegion String?     // 선호 지역
+  grade           LeadGrade   @default(WARM) // AI 예측 등급
+  
+  agentId         String
+  agent           User        @relation(fields: [agentId], references: [id])
+  
+  notes           Note[]
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  content   String
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Goal {
+  id              String   @id @default(cuid())
+  year            Int
+  month           Int
+  targetRevenue   Float    // 목표 매출
+  actualRevenue   Float    @default(0)
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  
+  weeklyGoals     WeeklyGoal[]
+
+  createdAt       DateTime @default(now())
+}
+
+model WeeklyGoal {
+  id                String   @id @default(cuid())
+  goalId            String
+  goal              Goal     @relation(fields: [goalId], references: [id])
+  weekNumber        Int
+  
+  // 역산 알고리즘에 따른 필요 활동 수
+  requiredShowings  Int      @default(0) // 필요 임장 수
+  requiredCalls     Int      @default(0) // 필요 전화 수
+  requiredListings  Int      @default(0) // 필요 매물 등록 수
+  
+  quests            Quest[]
+}
+
+model Quest {
+  id              String      @id @default(cuid())
+  title           String
+  description     String?
+  isCompleted     Boolean     @default(false)
+  dueDate         DateTime?
+  
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  
+  weeklyGoalId    String?
+  weeklyGoal      WeeklyGoal? @relation(fields: [weeklyGoalId], references: [id])
+
+  createdAt       DateTime    @default(now())
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  action        String   // 예: "고객 정보 조회", "개인정보 다운로드"
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  targetId      String?  // 조회된 대상의 ID
+  ipAddress     String?
+  
+  createdAt     DateTime @default(now())
+}
