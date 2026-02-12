@@ -7,8 +7,35 @@ const LeadCard = ({ lead }) => {
     COLD: '#6b7280'
   };
 
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
   return (
-    <div className="glass-card" style={{ padding: '20px', borderLeft: `4px solid ${gradeColors[lead.grade]}` }}>
+    <div className="glass-card" style={{ padding: '20px', borderLeft: `4px solid ${gradeColors[lead.grade]}`, position: 'relative' }}>
+      {isDeleting && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.8)',
+          backdropFilter: 'blur(4px)',
+          borderRadius: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 20,
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          <p style={{ marginBottom: '16px', fontWeight: '600' }}>정말 삭제하시겠습니까?</p>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button className="btn-outline" style={{ fontSize: '0.8rem', padding: '6px 12px' }} onClick={() => setIsDeleting(false)}>취소</button>
+            <button className="btn-primary" style={{ fontSize: '0.8rem', padding: '6px 12px', background: '#ef4444', border: 'none' }} onClick={() => lead.onDelete(lead.id)}>삭제</button>
+          </div>
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <h4 style={{ fontSize: '1.2rem' }}>{lead.name} 고객</h4>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -31,7 +58,7 @@ const LeadCard = ({ lead }) => {
             ✏️
           </button>
           <button 
-            onClick={() => { if(window.confirm('정말 삭제하시겠습니까?')) lead.onDelete(lead.id) }} 
+            onClick={() => setIsDeleting(true)} 
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: 'var(--text-secondary)' }}
             title="삭제"
           >
