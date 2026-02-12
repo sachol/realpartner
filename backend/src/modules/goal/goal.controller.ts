@@ -17,4 +17,9 @@ export class GoalController {
   async getCurrentGoal(@Param('userId') userId: string) {
     return this.goalService.getGoal(userId);
   }
+
+  @Post('seed')
+  async seed() {
+    return this.goalService.seed();
+  }
 }

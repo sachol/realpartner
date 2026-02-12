@@ -5,6 +5,9 @@ import PropertyForm from './components/PropertyForm'
 import PropertyCard from './components/PropertyCard'
 import LeadCard from './components/LeadCard'
 import GoalSettingModal from './components/GoalSettingModal'
+import MarketingModal from './components/MarketingModal'
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 function App() {
   const [view, setView] = useState('dashboard'); // 'dashboard' | 'property' | 'crm'
@@ -21,6 +24,10 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [properties, setProperties] = useState([]);
   const [leads, setLeads] = useState([]);
+
+  // Marketing Modal State
+  const [showMarketingModal, setShowMarketingModal] = useState(false);
+  const [marketingData, setMarketingData] = useState(null);
 
   const [quests, setQuests] = useState([
     { text: '김철수 고객 미팅 (10:00)', completed: true, tag: '미팅' },
@@ -44,7 +51,7 @@ function App() {
 
   const fetchProperties = async () => {
     try {
-      const response = await fetch(`http://localhost:4000/properties/${USER_ID}`);
+      const response = await fetch(`${API_BASE_URL}/properties/${USER_ID}`);
       const data = await response.json();
       setProperties(data);
     } catch (error) {
@@ -54,7 +61,7 @@ function App() {
 
   const fetchLeads = async () => {
     try {
-      const response = await fetch(`http://localhost:4000/leads/${USER_ID}`);
+      const response = await fetch(`${API_BASE_URL}/leads/${USER_ID}`);
       const data = await response.json();
       setLeads(data);
     } catch (error) {
@@ -64,7 +71,7 @@ function App() {
 
   const fetchCurrentGoal = async () => {
     try {
-      const response = await fetch(`http://localhost:4000/goals/${USER_ID}/current`);
+      const response = await fetch(`${API_BASE_URL}/goals/${USER_ID}/current`);
       if (response.ok) {
         const data = await response.json();
         if (data) {
@@ -86,7 +93,7 @@ function App() {
   const handleSetGoal = async (revenue) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`http://localhost:4000/goals/${USER_ID}`, {
+      const response = await fetch(`${API_BASE_URL}/goals/${USER_ID}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetRevenue: revenue }),
@@ -114,9 +121,24 @@ function App() {
     }
   };
 
+  const handleSuggestMarketing = async (leadId) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/leads/${leadId}/marketing-message`);
+      const data = await response.json();
+      setMarketingData(data);
+      setShowMarketingModal(true);
+    } catch (error) {
+      console.error('마케팅 문구 생성 실패:', error);
+      alert('AI 문구 생성 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSaveProperty = async (formData) => {
     try {
-      await fetch(`http://localhost:4000/properties/${USER_ID}`, {
+      await fetch(`${API_BASE_URL}/properties/${USER_ID}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -191,9 +213,27 @@ function App() {
             <h3 style={{ marginBottom: '16px' }}>HOT 리드 고객</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {leads.filter(l => l.grade === 'HOT').slice(0, 2).map(l => (
-                <LeadCard key={l.id} lead={l} />
+                <LeadCard key={l.id} lead={{...l, onSuggestMarketing: handleSuggestMarketing}} />
               ))}
               {leads.filter(l => l.grade === 'HOT').length === 0 && <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>현재 HOT 리드가 없습니다. 적극적인 영업이 필요합니다!</p>}
+            </div>
+          </div>
+
+          {/* Property Inventory Section */}
+          <div className="glass-card animate-fade" style={{ gridColumn: '1 / -1', marginTop: '16px', animationDelay: '0.4s' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ margin: 0 }}>보유 매물 관리</h3>
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>총 {properties.length}건</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+              {properties.map(p => (
+                <PropertyCard key={p.id} property={p} />
+              ))}
+              {properties.length === 0 && (
+                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                  등록된 매물이 없습니다. 상단 '매물 등록' 버튼을 눌러 첫 매물을 추가하세요!
+                </div>
+              )}
             </div>
           </div>
         </main>
@@ -208,7 +248,7 @@ function App() {
           <h2 style={{ marginBottom: '32px' }}>고객 인맥 관리 (CRM)</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
             {leads.map(l => (
-              <LeadCard key={l.id} lead={l} />
+              <LeadCard key={l.id} lead={{...l, onSuggestMarketing: handleSuggestMarketing}} />
             ))}
             {leads.length === 0 && (
               <div className="glass-card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px' }}>
@@ -225,6 +265,12 @@ function App() {
         onClose={() => setShowGoalModal(false)} 
         onSave={handleSetGoal}
         initialGoal={targetRevenue}
+      />
+
+      <MarketingModal 
+        isOpen={showMarketingModal} 
+        onClose={() => setShowMarketingModal(false)} 
+        data={marketingData}
       />
 
       {showIntro && (

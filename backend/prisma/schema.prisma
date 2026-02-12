@@ -3,33 +3,17 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  AGENT        // 공인중개사
-  ASSISTANT    // 중개보조원
-}
-
-enum PropertyStatus {
-  AVAILABLE    // 진행중 (파랑)
-  PENDING      // 보류 (주황)
-  COMPLETED    // 완료 (회색)
-}
-
-enum LeadGrade {
-  HOT
-  WARM
-  COLD
-}
-
+// Enums removed for SQLite compatibility
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
   password      String
   name          String
-  role          UserRole  @default(AGENT)
+  role          String    @default("AGENT")
   monthlyGoal   Float     @default(0) // 목표 매출액
   
   properties    Property[]
@@ -48,7 +32,7 @@ model Property {
   detailAddress     String?
   buildingName      String?
   type              String         // 아파트, 빌라, 상가 등
-  status            PropertyStatus @default(AVAILABLE)
+  status            String         @default("AVAILABLE")
   
   // 국토부 API 연동 데이터 (Auto-fill)
   exclusiveArea     Float?         // 전용면적
@@ -65,6 +49,11 @@ model Property {
   fixedMaintenanceFee     Float @default(0)    // 정액 관리비
   realMaintenanceFeeDesc  String?              // 실비 항목 설명 (전기, 수도 등)
 
+  // Compliance Metadata
+  verificationDate        DateTime?
+  verifierName            String?
+  complianceStatus        String @default("PENDING") // PENDING, VERIFIED, REJECTED
+
   agentId           String
   agent             User           @relation(fields: [agentId], references: [id])
 
@@ -79,7 +68,7 @@ model Lead {
   budget          Float?      // 예산
   targetDate      DateTime?   // 입주 희망일
   preferredRegion String?     // 선호 지역
-  grade           LeadGrade   @default(WARM) // AI 예측 등급
+  grade           String      @default("WARM") // AI 예측 등급
   
   agentId         String
   agent           User        @relation(fields: [agentId], references: [id])

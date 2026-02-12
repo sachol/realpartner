@@ -19,4 +19,9 @@ export class LeadController {
   async addNote(@Param('leadId') leadId: string, @Body('content') content: string) {
     return this.leadService.addNote(leadId, content);
   }
+
+  @Get(':leadId/marketing-message')
+  async getMarketingMessage(@Param('leadId') leadId: string) {
+    return this.leadService.generateMarketingMessage(leadId);
+  }
 }

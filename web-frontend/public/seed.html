@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>AgentPartner DB Seed</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #111; color: #fff; }
+        button { padding: 20px 40px; font-size: 20px; cursor: pointer; background: #00d26a; border: none; border-radius: 8px; color: #000; font-weight: bold; }
+        button:hover { background: #00b35a; }
+        #status { margin-top: 20px; font-size: 16px; color: #ccc; }
+    </style>
+</head>
+<body>
+    <div style="text-align: center;">
+        <h1>데이터베이스 초기화 도구</h1>
+        <p>테스트용 데이터(사용자 user-123)를 생성합니다.</p>
+        <button onclick="seedDB()">데이터 생성하기 (Seed)</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        async function seedDB() {
+            const status = document.getElementById('status');
+            status.innerText = "요청 중...";
+            status.style.color = "#ccc";
+            
+            try {
+                const response = await fetch('http://localhost:4000/goals/seed', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    status.innerText = "성공! 테스트 데이터를 생성했습니다. 이제 목표 설정을 다시 시도해보세요.";
+                    status.style.color = "#00d26a";
+                } else {
+                    status.innerText = "실패: " + (data.message || JSON.stringify(data));
+                    status.style.color = "#ff4444";
+                }
+            } catch (error) {
+                status.innerText = "에러 발생: 백엔드 서버가 켜져있는지 확인해주세요. (http://localhost:4000)";
+                status.style.color = "#ff4444";
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>

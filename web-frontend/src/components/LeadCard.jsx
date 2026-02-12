@@ -35,12 +35,20 @@ const LeadCard = ({ lead }) => {
         </div>
       </div>
 
-      <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px' }}>
+      <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', marginBottom: '16px' }}>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>최근 상담</p>
         <p style={{ fontSize: '0.85rem' }}>
           {lead.notes && lead.notes.length > 0 ? lead.notes[0].content : '상담 이력이 없습니다.'}
         </p>
       </div>
+
+      <button 
+        className="btn-primary" 
+        style={{ width: '100%', fontSize: '0.85rem', padding: '10px', background: 'var(--accent-blue)', border: 'none' }}
+        onClick={() => lead.onSuggestMarketing(lead.id)}
+      >
+        ✨ AI 마케팅 문구 제안
+      </button>
     </div>
   );
 };
