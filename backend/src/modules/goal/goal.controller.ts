@@ -8,8 +8,13 @@ export class GoalController {
   @Post(':userId')
   async createGoal(
     @Param('userId') userId: string,
-    @Body('targetRevenue') targetRevenue: number,
+    @Body() body: { targetRevenue: number },
   ) {
-    return this.goalService.calculateWeeklyGoals(userId, targetRevenue as any);
+    return this.goalService.calculateWeeklyGoals(userId, body.targetRevenue);
+  }
+
+  @Get(':userId/current')
+  async getCurrentGoal(@Param('userId') userId: string) {
+    return this.goalService.getGoal(userId);
   }
 }

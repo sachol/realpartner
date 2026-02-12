@@ -4,14 +4,20 @@ import PerformanceCard from './components/PerformanceCard'
 import PropertyForm from './components/PropertyForm'
 import PropertyCard from './components/PropertyCard'
 import LeadCard from './components/LeadCard'
+import GoalSettingModal from './components/GoalSettingModal'
 
 function App() {
   const [view, setView] = useState('dashboard'); // 'dashboard' | 'property' | 'crm'
   const [theme, setTheme] = useState('dark');
   const [showIntro, setShowIntro] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  
+  // Goal State
+  const [showGoalModal, setShowGoalModal] = useState(false);
   const [targetRevenue, setTargetRevenue] = useState(10000000);
-  const [currentRevenue, setCurrentRevenue] = useState(6500000);
+  const [currentRevenue, setCurrentRevenue] = useState(0); // 실제 매출 (아직 연동 안됨)
+  const [weeklyTasks, setWeeklyTasks] = useState(null); // 주간 활동 목표
+
   const [isLoading, setIsLoading] = useState(false);
   const [properties, setProperties] = useState([]);
   const [leads, setLeads] = useState([]);
@@ -23,6 +29,9 @@ function App() {
     { text: '기존 고객 안부 전화 (5명)', completed: false, tag: 'CRM' },
   ]);
 
+  // 임시 User ID
+  const USER_ID = 'user-123';
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
@@ -30,11 +39,12 @@ function App() {
   useEffect(() => {
     fetchProperties();
     fetchLeads();
+    fetchCurrentGoal();
   }, []);
 
   const fetchProperties = async () => {
     try {
-      const response = await fetch('http://localhost:4000/properties/user-123');
+      const response = await fetch(`http://localhost:4000/properties/${USER_ID}`);
       const data = await response.json();
       setProperties(data);
     } catch (error) {
@@ -44,7 +54,7 @@ function App() {
 
   const fetchLeads = async () => {
     try {
-      const response = await fetch('http://localhost:4000/leads/user-123');
+      const response = await fetch(`http://localhost:4000/leads/${USER_ID}`);
       const data = await response.json();
       setLeads(data);
     } catch (error) {
@@ -52,24 +62,53 @@ function App() {
     }
   };
 
-  const handleSetGoal = async () => {
+  const fetchCurrentGoal = async () => {
+    try {
+      const response = await fetch(`http://localhost:4000/goals/${USER_ID}/current`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data) {
+          setTargetRevenue(data.targetRevenue);
+          // 현재 주차(1주차 가정) 목표 설정
+          if (data.weeklyGoals && data.weeklyGoals.length > 0) {
+            setWeeklyTasks(data.weeklyGoals[0]);
+          }
+        } else {
+          // 목표가 없으면 모달 띄우기 (UX 선택 사항)
+          // setShowGoalModal(true);
+        }
+      }
+    } catch (error) {
+      console.error('Goal fetch 실패:', error);
+    }
+  };
+
+  const handleSetGoal = async (revenue) => {
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:4000/goals/user-123', {
+      const response = await fetch(`http://localhost:4000/goals/${USER_ID}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetRevenue }),
+        body: JSON.stringify({ targetRevenue: revenue }),
       });
       const data = await response.json();
-      const thisWeek = data.weeklyGoals[0];
-      setQuests([
-        { text: `이번 주 임장 목표: ${thisWeek.requiredShowings}건`, completed: false, tag: '현장' },
-        { text: `이번 주 전화 목표: ${thisWeek.requiredCalls}건`, completed: false, tag: 'CRM' },
-        { text: `이번 주 신규 매물 등록: ${thisWeek.requiredListings}건`, completed: false, tag: '등록' },
-        ...quests.slice(0, 1),
-      ]);
+      
+      setTargetRevenue(data.targetRevenue);
+      if (data.weeklyGoals && data.weeklyGoals.length > 0) {
+        setWeeklyTasks(data.weeklyGoals[0]);
+        // 퀘스트 업데이트 (목표 설정 직후 반영)
+        const thisWeek = data.weeklyGoals[0];
+        setQuests([
+          { text: `이번 주 임장 목표: ${thisWeek.requiredShowings}건`, completed: false, tag: '현장' },
+          { text: `이번 주 전화 목표: ${thisWeek.requiredCalls}통`, completed: false, tag: 'CRM' },
+          { text: `이번 주 매물 확보: ${thisWeek.requiredListings}건`, completed: false, tag: '등록' },
+          ...quests.filter(q => !q.text.includes('목표')) // 기존 목표 퀘스트 제거 후 추가
+        ]);
+      }
+      setShowGoalModal(false);
     } catch (error) {
       console.error('Goal 설정 실패:', error);
+      alert('목표 설정 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +116,7 @@ function App() {
 
   const handleSaveProperty = async (formData) => {
     try {
-      await fetch('http://localhost:4000/properties/user-123', {
+      await fetch(`http://localhost:4000/properties/${USER_ID}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -124,8 +163,30 @@ function App() {
       
       {view === 'dashboard' && (
         <main style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '32px' }}>
-          <PerformanceCard title="월 매출 목표 달성률" current={currentRevenue} target={targetRevenue} unit="원" delay="0.1s" />
+          
+          {/* Performance Card with Edit Button */}
+          <div style={{ position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 10 }}>
+              <button 
+                onClick={() => setShowGoalModal(true)}
+                style={{ 
+                  background: 'rgba(255,255,255,0.1)', 
+                  border: 'none', 
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '0.8rem'
+                }}
+              >
+                목표 수정
+              </button>
+            </div>
+            <PerformanceCard title="월 매출 목표 달성률" current={currentRevenue} target={targetRevenue} unit="원" delay="0.1s" />
+          </div>
+
           <QuestCard title="Today's Quest" quests={quests} delay="0.2s" />
+          
           <div className="glass-card animate-fade" style={{ animationDelay: '0.3s' }}>
             <h3 style={{ marginBottom: '16px' }}>HOT 리드 고객</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -157,6 +218,15 @@ function App() {
           </div>
         </div>
       )}
+      
+      {/* Modals */}
+      <GoalSettingModal 
+        isOpen={showGoalModal} 
+        onClose={() => setShowGoalModal(false)} 
+        onSave={handleSetGoal}
+        initialGoal={targetRevenue}
+      />
+
       {showIntro && (
         <div className="modal-overlay" onClick={() => setShowIntro(false)}>
           <div className="modal-content animate-fade" onClick={e => e.stopPropagation()}>
