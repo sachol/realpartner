@@ -24,4 +24,14 @@ export class LeadController {
   async getMarketingMessage(@Param('leadId') leadId: string) {
     return this.leadService.generateMarketingMessage(leadId);
   }
+
+  @Post(':leadId/patch') // Prisma doesn't strictly need PATCH, but using method name for clarity
+  async updateLead(@Param('leadId') leadId: string, @Body() data: any) {
+    return this.leadService.update(leadId, data);
+  }
+
+  @Post(':leadId/delete') // Using POST for delete to simplify some frontend fetch setups, or could use DELETE
+  async deleteLead(@Param('leadId') leadId: string) {
+    return this.leadService.delete(leadId);
+  }
 }

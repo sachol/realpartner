@@ -11,17 +11,33 @@ const LeadCard = ({ lead }) => {
     <div className="glass-card" style={{ padding: '20px', borderLeft: `4px solid ${gradeColors[lead.grade]}` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <h4 style={{ fontSize: '1.2rem' }}>{lead.name} 고객</h4>
-        <span style={{ 
-          fontSize: '0.7rem', 
-          fontWeight: '800', 
-          color: gradeColors[lead.grade],
-          background: `${gradeColors[lead.grade]}15`,
-          padding: '2px 8px',
-          borderRadius: '20px',
-          border: `1px solid ${gradeColors[lead.grade]}33`
-        }}>
-          {lead.grade}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ 
+            fontSize: '0.7rem', 
+            fontWeight: '800', 
+            color: gradeColors[lead.grade],
+            background: `${gradeColors[lead.grade]}15`,
+            padding: '2px 8px',
+            borderRadius: '20px',
+            border: `1px solid ${gradeColors[lead.grade]}33`
+          }}>
+            {lead.grade}
+          </span>
+          <button 
+            onClick={() => lead.onEdit(lead)} 
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: 'var(--text-secondary)' }}
+            title="수정"
+          >
+            ✏️
+          </button>
+          <button 
+            onClick={() => { if(window.confirm('정말 삭제하시겠습니까?')) lead.onDelete(lead.id) }} 
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: 'var(--text-secondary)' }}
+            title="삭제"
+          >
+            🗑️
+          </button>
+        </div>
       </div>
       
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>

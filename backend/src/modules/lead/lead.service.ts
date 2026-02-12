@@ -21,14 +21,28 @@ export class LeadService {
   }
 
   async create(agentId: string, data: any) {
+    const { id, notes, targetDate, ...leadData } = data;
     const grade = this.calculateLeadGrade(data);
-    return this.prisma.lead.create({
+    
+    const lead = await this.prisma.lead.create({
       data: {
-        ...data,
+        ...leadData,
+        targetDate: targetDate ? new Date(targetDate) : null,
         grade,
         agentId,
       },
     });
+
+    if (notes && typeof notes === 'string') {
+      await this.prisma.note.create({
+        data: {
+          content: notes,
+          leadId: lead.id,
+        },
+      });
+    }
+
+    return lead;
   }
 
   async addNote(leadId: string, content: string) {
@@ -48,8 +62,8 @@ export class LeadService {
     const budget = data.budget || 0;
     const hasTargetDate = !!data.targetDate;
 
-    if (budget > 1000000000 && hasTargetDate) return LeadGrade.HOT;
-    if (budget > 500000000 || hasTargetDate) return LeadGrade.WARM;
+    if (budget >= 1000000000 && hasTargetDate) return LeadGrade.HOT;
+    if (budget >= 500000000 || hasTargetDate) return LeadGrade.WARM;
     return LeadGrade.COLD;
   }
 
@@ -113,6 +127,47 @@ export class LeadService {
       htmlContent,
       property: property || null,
     };
+  }
+
+  /**
+   * 리드 정보 업데이트
+   */
+  async update(leadId: string, data: any) {
+    const { id, notes, targetDate, agentId, createdAt, updatedAt, ...leadData } = data;
+    const grade = this.calculateLeadGrade(data);
+    
+    const lead = await this.prisma.lead.update({
+      where: { id: leadId },
+      data: {
+        ...leadData,
+        targetDate: targetDate ? new Date(targetDate) : null,
+        grade,
+      },
+    });
+
+    if (notes && typeof notes === 'string') {
+      await this.prisma.note.create({
+        data: {
+          content: notes,
+          leadId,
+        },
+      });
+    }
+
+    return lead;
+  }
+
+  /**
+   * 리드 삭제 (관련 노트 포함)
+   */
+  async delete(leadId: string) {
+    await this.prisma.note.deleteMany({
+      where: { leadId },
+    });
+
+    return this.prisma.lead.delete({
+      where: { id: leadId },
+    });
   }
 
   /**

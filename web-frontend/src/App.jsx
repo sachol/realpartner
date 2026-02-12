@@ -4,6 +4,7 @@ import PerformanceCard from './components/PerformanceCard'
 import PropertyForm from './components/PropertyForm'
 import PropertyCard from './components/PropertyCard'
 import LeadCard from './components/LeadCard'
+import LeadForm from './components/LeadForm'
 import GoalSettingModal from './components/GoalSettingModal'
 import MarketingModal from './components/MarketingModal'
 
@@ -28,6 +29,9 @@ function App() {
   // Marketing Modal State
   const [showMarketingModal, setShowMarketingModal] = useState(false);
   const [marketingData, setMarketingData] = useState(null);
+
+  const [showLeadForm, setShowLeadForm] = useState(false);
+  const [selectedLead, setSelectedLead] = useState(null);
 
   const [quests, setQuests] = useState([
     { text: '김철수 고객 미팅 (10:00)', completed: true, tag: '미팅' },
@@ -138,15 +142,58 @@ function App() {
 
   const handleSaveProperty = async (formData) => {
     try {
-      await fetch(`${API_BASE_URL}/properties/${USER_ID}`, {
+      const response = await fetch(`${API_BASE_URL}/properties/${USER_ID}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-      fetchProperties();
+      const data = await response.json();
+      setProperties([...properties, data]);
       setView('dashboard');
     } catch (error) {
       console.error('Property 저장 실패:', error);
+    }
+  };
+
+  const handleSaveLead = async (formData) => {
+    setIsLoading(true);
+    try {
+      const url = selectedLead 
+        ? `${API_BASE_URL}/leads/${selectedLead.id}/patch` 
+        : `${API_BASE_URL}/leads/${USER_ID}`;
+      
+      const response = await fetch(url, {
+        method: 'POST', // Backend currently uses @Post for update too
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        await fetchLeads(); // Refresh list
+        setShowLeadForm(false);
+        setSelectedLead(null);
+        // if (view === 'dashboard') setView('crm'); // Keep current view if editing from CRM
+      }
+    } catch (error) {
+      console.error('Lead 저장 실패:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteLead = async (leadId) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/leads/${leadId}/delete`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        await fetchLeads();
+      }
+    } catch (error) {
+      console.error('Lead 삭제 실패:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -213,7 +260,15 @@ function App() {
             <h3 style={{ marginBottom: '16px' }}>HOT 리드 고객</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {leads.filter(l => l.grade === 'HOT').slice(0, 2).map(l => (
-                <LeadCard key={l.id} lead={{...l, onSuggestMarketing: handleSuggestMarketing}} />
+                <LeadCard 
+                  key={l.id} 
+                  lead={{
+                    ...l, 
+                    onSuggestMarketing: handleSuggestMarketing,
+                    onEdit: (lead) => { setView('crm'); setSelectedLead(lead); setShowLeadForm(true); },
+                    onDelete: handleDeleteLead
+                  }} 
+                />
               ))}
               {leads.filter(l => l.grade === 'HOT').length === 0 && <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>현재 HOT 리드가 없습니다. 적극적인 영업이 필요합니다!</p>}
             </div>
@@ -245,17 +300,42 @@ function App() {
 
       {view === 'crm' && (
         <div className="animate-fade">
-          <h2 style={{ marginBottom: '32px' }}>고객 인맥 관리 (CRM)</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
-            {leads.map(l => (
-              <LeadCard key={l.id} lead={{...l, onSuggestMarketing: handleSuggestMarketing}} />
-            ))}
-            {leads.length === 0 && (
-              <div className="glass-card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px' }}>
-                <p style={{ color: 'var(--text-secondary)' }}>등록된 고객이 없습니다. 첫 번째 리드를 추가해보세요.</p>
-              </div>
-            )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+            <h2 style={{ margin: 0 }}>고객 인맥 관리 (CRM)</h2>
+            <button 
+              className="btn-primary" 
+              onClick={() => { setSelectedLead(null); setShowLeadForm(true); }}
+            >
+              + 신규 고객 등록
+            </button>
           </div>
+
+          {showLeadForm ? (
+            <LeadForm 
+              onSave={handleSaveLead} 
+              onCancel={() => setShowLeadForm(false)} 
+              initialData={selectedLead} 
+            />
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+              {leads.map(l => (
+                <LeadCard 
+                  key={l.id} 
+                  lead={{
+                    ...l, 
+                    onSuggestMarketing: handleSuggestMarketing,
+                    onEdit: (lead) => { setSelectedLead(lead); setShowLeadForm(true); },
+                    onDelete: handleDeleteLead
+                  }} 
+                />
+              ))}
+              {leads.length === 0 && (
+                <div className="glass-card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px' }}>
+                  <p style={{ color: 'var(--text-secondary)' }}>등록된 고객이 없습니다. 우측 상단 '신규 고객 등록' 버튼을 눌러 첫 번째 리드를 추가해보세요.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
       
